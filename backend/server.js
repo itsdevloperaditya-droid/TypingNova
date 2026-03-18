@@ -4,46 +4,52 @@ const cors = require('cors');
 const path = require('path');
 const connectDB = require('./config/db');
 
-// Load env vars
+// Load env variables
 dotenv.config();
 
+// Import routes
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
 
-// Connect to database
-connectDB();
-
 const app = express();
 
-// Body parser
+// Middleware
 app.use(express.json());
-
-// Enable CORS
 app.use(cors());
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/admin', adminRoutes);
+// Connect DB and then start server
+connectDB()
+  .then(() => {
 
-// Serve static files from the frontend
-// This should come before the catch-all route
-app.use(express.static(path.join(__dirname, '../frontend')));
+    // API Routes
+    app.use('/api/auth', authRoutes);
+    app.use('/api/admin', adminRoutes);
 
-// For any other routes, serve the index.html file.
-// This is crucial for Single Page Applications (SPAs) to handle client-side routing.
-// Using '/*' ensures that all paths not caught by API routes or static files
-// are directed to the index.html.
-app.get('/*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
+    // Health check route (Render ke liye useful)
+    app.get('/api', (req, res) => {
+      res.json({ message: 'Welcome to TypeNova API' });
+    });
 
-// A simple health check route for Render
-app.get('/api', (req, res) => {
-    res.json({ message: 'Welcome to TypeNova API' });
-});
+    // Serve static frontend
+    const frontendPath = path.join(__dirname, '..', 'frontend');
+    app.use(express.static(frontendPath));
 
-const PORT = process.env.PORT || 5000;
+    // Catch-all route (SPA support) — ALWAYS LAST
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(frontendPath, 'index.html'));
+    });
 
-app.listen(PORT, () => {
-    console.log(`Server running in \${process.env.NODE_ENV || 'development'} mode on port \${PORT}`);
-});
+    // Port (Render auto-assign karega)
+    const PORT = process.env.PORT || 3000;
+
+    app.listen(PORT, () => {
+      console.log(
+        `Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`
+      );
+    });
+
+  })
+  .catch((err) => {
+    console.error('Database connection failed:', err);
+    process.exit(1); // crash so Render restart kare
+  });

@@ -66,7 +66,7 @@ const toPublicLeaderboardEntry = (user, index) => {
 router.get('/', async (req, res) => {
   try {
     const users = await User.find({})
-      .select('username stats plan createdAt')
+      .select('username stats.bestWPM stats.avgAccuracy stats.tests stats.words stats.streak plan createdAt')
       .sort({ 'stats.bestWpm': -1, 'stats.avgAccuracy': -1 })
       .lean()
       .limit(100);

@@ -1461,8 +1461,8 @@ async function buildLeaderboard() {
     const lbData = data.leaderboard.map(entry => ({
       ...entry,
       username: entry.username || entry.name,
-      wpm: Number(entry.wpm) || 0,
-      accuracy: Number(entry.accuracy ?? entry.acc) || 0,
+      wpm: Number(entry.wpm),
+      accuracy: Number(entry.accuracy ?? entry.acc),
       tests: Number(entry.tests) || 0,
       words: Number(entry.words ?? entry.totalWords) || 0,
       streak: Number(entry.streak) || 0,

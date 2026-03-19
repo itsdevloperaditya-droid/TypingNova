@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const { toPublicUser } = require('../utils/userStats');
 
 // Helper to generate JWT
 const generateToken = (id) => {
@@ -25,7 +26,7 @@ router.post('/register', async (req, res) => {
     res.status(201).json({
       success: true,
       token: generateToken(user._id),
-      user: { id: user._id, username: user.username, email: user.email, stats: user.stats }
+      user: toPublicUser(user)
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -46,7 +47,7 @@ router.post('/login', async (req, res) => {
     res.json({
       success: true,
       token: generateToken(user._id),
-      user: { id: user._id, username: user.username, email: user.email, stats: user.stats }
+      user: toPublicUser(user)
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -62,7 +63,7 @@ router.get('/me', async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     const user = await User.findById(decoded.id);
-    res.json({ success: true, user });
+    res.json({ success: true, user: toPublicUser(user) });
   } catch (error) {
     res.status(401).json({ success: false });
   }
@@ -77,7 +78,7 @@ router.post('/upgrade-test', async (req, res) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
     const user = await User.findByIdAndUpdate(decoded.id, { plan: 'pro' }, { new: true });
-    res.json({ success: true, user });
+    res.json({ success: true, user: toPublicUser(user) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

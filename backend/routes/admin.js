@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
+const { getNormalizedStats, toPublicUser } = require('../utils/userStats');
 
 const ADMIN_ID = 'admin6143';
 const ADMIN_PASSWORD = '#include6143';
@@ -37,9 +38,9 @@ router.get('/stats', async (req, res) => {
     
     const users = await User.find().select('-password').sort({ createdAt: -1 });
     
-    const avgWpm = users.reduce((acc, u) => acc + (u.stats?.bestWpm || 0), 0) / (totalUsers || 1);
-    const avgAccuracy = users.reduce((acc, u) => acc + (u.stats?.avgAccuracy || 0), 0) / (totalUsers || 1);
-    const totalTests = users.reduce((acc, u) => acc + (u.stats?.testsDone || 0), 0);
+    const avgWpm = users.reduce((acc, u) => acc + getNormalizedStats(u).bestWpm, 0) / (totalUsers || 1);
+    const avgAccuracy = users.reduce((acc, u) => acc + getNormalizedStats(u).avgAccuracy, 0) / (totalUsers || 1);
+    const totalTests = users.reduce((acc, u) => acc + getNormalizedStats(u).testsDone, 0);
     
     res.json({
       success: true,
@@ -50,7 +51,7 @@ router.get('/stats', async (req, res) => {
         avgWpm: Math.round(avgWpm * 10) / 10,
         avgAccuracy: Math.round(avgAccuracy * 10) / 10,
         totalTests,
-        recentUsers: users.slice(0, 20)
+        recentUsers: users.slice(0, 20).map(toPublicUser)
       }
     });
   } catch (e) {
@@ -69,7 +70,7 @@ router.get('/users', async (req, res) => {
     
     const users = await User.find().select('-password').sort({ 'stats.bestWpm': -1 });
     
-    res.json({ success: true, users });
+    res.json({ success: true, users: users.map(toPublicUser) });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -90,7 +91,7 @@ router.get('/users/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
     
-    res.json({ success: true, user });
+    res.json({ success: true, user: toPublicUser(user) });
   } catch (e) {
     res.status(500).json({ success: false, message: 'Server error' });
   }

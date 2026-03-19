@@ -1,14 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const { getNormalizedStats, toPublicUser } = require('../utils/userStats');
 
 const toPublicLeaderboardEntry = (user, index) => {
-  const stats = user.stats || {};
-  const wpm = Number(stats.bestWpm) || 0;
-  const acc = Number(stats.avgAccuracy) || 0;
-  const tests = Number(stats.testsDone) || 0;
-  const totalWords = Number(stats.totalWords) || 0;
-  const streak = Number(stats.streak) || 0;
+  const publicUser = toPublicUser(user);
+  const stats = getNormalizedStats(publicUser);
+  const wpm = stats.bestWpm;
+  const acc = stats.avgAccuracy;
+  const tests = stats.testsDone;
+  const totalWords = stats.totalWords;
+  const streak = stats.streak;
 
   let rank = index + 1;
   let rankLabel = 'C';
@@ -44,8 +46,8 @@ const toPublicLeaderboardEntry = (user, index) => {
   return {
     id: String(user._id),
     rank,
-    username: user.username,
-    name: user.username,
+    username: publicUser.username,
+    name: publicUser.username,
     wpm,
     accuracy: acc > 0 ? Math.round(acc * 10) / 10 : 0,
     acc: acc > 0 ? Math.round(acc * 10) / 10 : 0,
@@ -53,11 +55,11 @@ const toPublicLeaderboardEntry = (user, index) => {
     words: totalWords,
     totalWords,
     streak,
-    plan: user.plan || 'basic',
+    plan: publicUser.plan,
     rankLabel,
     rankClass,
     hasTested,
-    joinedAt: user.createdAt
+    joinedAt: publicUser.createdAt
   };
 };
 

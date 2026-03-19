@@ -7046,6 +7046,7 @@ async function handleAuth(e) {
     if (data.success) {
       currentUser = data.user;
       localStorage.setItem('tg_token', data.token);
+      localStorage.setItem('tg_user', JSON.stringify(data.user));
       updateAuthUI();
       closeAuthModal();
 
@@ -7093,26 +7094,50 @@ function updateAuthUI() {
 function logout() {
   currentUser = null;
   localStorage.removeItem('tg_token');
+  localStorage.removeItem('tg_user');
   updateAuthUI();
   showToast('Logged out successfully', 'info');
 }
 
-// Check for token on load
-async function checkCurrent() {
+async function restoreAuthSession() {
   const token = localStorage.getItem('tg_token');
-  if (!token) return;
+  if (!token) {
+    currentUser = null;
+    updateAuthUI();
+    return;
+  }
+
   try {
-    const res = await fetch('https://typenova-backend-p5hu.onrender.com/api/auth/login', {
+    const res = await fetch(`${BASE_URL}/api/auth/me`, {
       headers: { 'Authorization': `Bearer ${token}` }
     });
+
+    if (!res.ok) throw new Error('Session restore failed');
+
     const data = await res.json();
-    if (data.success) {
+
+    if (data.success && data.user) {
       currentUser = data.user;
-      updateAuthUI();
+      localStorage.setItem('tg_user', JSON.stringify(data.user));
+    } else {
+      currentUser = null;
+      localStorage.removeItem('tg_token');
+      localStorage.removeItem('tg_user');
     }
-  } catch (e) {}
+  } catch (e) {
+    currentUser = null;
+    localStorage.removeItem('tg_token');
+    localStorage.removeItem('tg_user');
+  }
+
+  updateAuthUI();
 }
-checkCurrent();
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', restoreAuthSession);
+} else {
+  restoreAuthSession();
+}
 
 
 // LOGOUT MODAL FUNCTIONS
@@ -7127,6 +7152,7 @@ function closeLogoutModal() {
 function confirmLogout() {
   currentUser = null;
   localStorage.removeItem('tg_token');
+  localStorage.removeItem('tg_user');
   updateAuthUI();
   closeLogoutModal();
   showToast('Logged out successfully', 'info');
@@ -7275,4 +7301,3 @@ function goToUpgradeFromLock() {
   closeProLockModal();
   openPlansModal();
 }
-

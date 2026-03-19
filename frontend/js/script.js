@@ -7176,21 +7176,30 @@ function closePlansModal() {
 
 async function handleUpgrade() {
   const btn = document.querySelector('.plan-btn.pro-btn');
+  const token = localStorage.getItem('tg_token');
+
+  if (!token || !currentUser) {
+    closePlansModal();
+    openAuthModal();
+    showToast('Please login first to upgrade.', 'info');
+    return;
+  }
+
   btn.innerHTML = '🎉 Activating PRO...';
   btn.disabled = true;
   
   try {
-    const res = await fetch('https://typenova-backend-p5hu.onrender.com/api/auth/login', {
+    const res = await fetch(`${BASE_URL}/api/auth/upgrade-test`, {
       method: 'POST',
       headers: { 
-        'Authorization': `Bearer ${localStorage.getItem('tg_token')}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }
     });
     
     const data = await res.json();
-    if (data.success) {
-      currentUser.plan = 'pro';
+    if (data.success && data.user) {
+      currentUser = data.user;
       localStorage.setItem('tg_user', JSON.stringify(currentUser));
       updateAuthUI();
       closePlansModal();
@@ -7199,12 +7208,12 @@ async function handleUpgrade() {
       launchConfetti();
     } else {
       showToast('Upgrade failed. Please try again.', 'error');
-      btn.innerHTML = 'Upgrade to Pro';
+      btn.innerHTML = '🎁 GET PRO FREE NOW!';
       btn.disabled = false;
     }
   } catch(e) {
     showToast('Upgrade failed. Please try again.', 'error');
-    btn.innerHTML = 'Upgrade to Pro';
+    btn.innerHTML = '🎁 GET PRO FREE NOW!';
     btn.disabled = false;
   }
 }

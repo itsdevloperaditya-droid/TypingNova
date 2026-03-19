@@ -25,7 +25,7 @@ connectDB()
     app.use('/api/auth', authRoutes);
     app.use('/api/admin', adminRoutes);
 
-    // Health check route (Render ke liye useful)
+    // Health check route
     app.get('/api', (req, res) => {
       res.json({ message: 'Welcome to TypeNova API' });
     });
@@ -34,12 +34,12 @@ connectDB()
     const frontendPath = path.join(__dirname, '..', 'frontend');
     app.use(express.static(frontendPath));
 
-    // Catch-all route (SPA support) — ALWAYS LAST
-    app.get('*', (req, res) => {
+    // ✅ FIXED Catch-all route (IMPORTANT)
+    app.get('/*', (req, res) => {
       res.sendFile(path.join(frontendPath, 'index.html'));
     });
 
-    // Port (Render auto-assign karega)
+    // Port
     const PORT = process.env.PORT || 3000;
 
     app.listen(PORT, () => {
@@ -51,5 +51,5 @@ connectDB()
   })
   .catch((err) => {
     console.error('Database connection failed:', err);
-    process.exit(1); // crash so Render restart kare
+    process.exit(1);
   });

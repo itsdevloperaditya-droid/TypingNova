@@ -819,6 +819,23 @@ function finishTest() {
   state.stats.streak++;
   saveStats();
   updateStatsBar();
+  
+  // Save to server if logged in
+  if (currentUser) {
+    fetch(`${BASE_URL}/api/auth/test-result`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({
+        wpm,
+        accuracy: acc,
+        timeLimit: state.timeLimit,
+        totalWords: Math.floor(state.typedIndex/5)
+      })
+    }).catch(e => console.log('Failed to save test result to server'));
+  }
 
   // Format time display
   let timeDisplay;
@@ -1362,75 +1379,102 @@ async function buildLeaderboard() {
     const res = await fetch(`${BASE_URL}/api/leaderboard`);
     const data = await res.json();
     
-    const userWpm = Math.max(...Object.values(state.stats.pbWpm), 0);
-    const userAcc = state.stats.accuracies.length ? Math.round(state.stats.accuracies.reduce((a,b)=>a+b,0)/state.stats.accuracies.length)+'%' : '0%';
-    
-    let lbData = [];
-    if (data.success && data.leaderboard) {
-      lbData = data.leaderboard.map(e => ({
-        ...e,
-        mode: '60s'
-      }));
-    }
-    
-    const loggedInUser = localStorage.getItem('token');
-    if (loggedInUser && userWpm > 0) {
-      const existingIndex = lbData.findIndex(e => e.name === state.user?.username);
-      if (existingIndex !== -1) {
-        lbData[existingIndex].wpm = userWpm;
-        lbData[existingIndex].acc = userAcc;
-      } else {
-        lbData.push({
-          rank: lbData.length + 1,
-          name: state.user?.username || 'YOU',
-          wpm: userWpm,
-          acc: userAcc,
-          tests: state.stats.testsDone || 0,
-          tag: state.user?.plan === 'pro' ? 'pro' : ''
-        });
-      }
-    }
-    
-    lbData.sort((a, b) => b.wpm - a.wpm);
-    lbData = lbData.map((e, i) => ({ ...e, rank: i + 1 }));
-
     const tbody = document.getElementById('lb-body');
     tbody.innerHTML = '';
     
-    if (lbData.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text2);">No users on leaderboard yet. Be the first!</td></tr>';
-    } else {
-      lbData.forEach(e => {
-        const isYou = e.name === state.user?.username;
-        const rankClass = e.rank === 1 ? 'top1' : e.rank === 2 ? 'top2' : e.rank === 3 ? 'top3' : '';
-        const rankIcon = e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : e.rank;
-        const tagHtml = e.tag ? `<span class="lb-tag tag-${e.tag}">${e.tag.toUpperCase()}</span>` : '';
-        tbody.innerHTML += `
-          <tr style="${isYou ? 'background:rgba(0,212,255,0.05);' : ''}">
-            <td><span class="lb-rank ${rankClass}">${rankIcon}</span></td>
-            <td><span class="lb-name" style="${isYou ? 'color:var(--cyan);font-weight:700' : ''}">${isYou ? '⟨ ' + e.name + ' ⟩' : e.name}</span> ${tagHtml}</td>
-            <td><span class="lb-wpm">${e.wpm || '?'}</span></td>
-            <td><span class="lb-acc">${e.acc}</span></td>
-            <td style="color:var(--text2);font-size:0.8rem">${e.tests || 0} tests</td>
-            <td style="color:var(--text2);font-size:0.75rem">${e.rank <= 3 ? 'S Rank' : e.rank <= 6 ? 'A Rank' : e.rank <= 8 ? 'B Rank' : 'C Rank'}</td>
-          </tr>`;
-      });
+    if (!data.success || !data.leaderboard || data.leaderboard.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" style="text-align:center;padding:60px;color:var(--text2);">
+            <div style="font-size:3rem;margin-bottom:16px;">🏆</div>
+            <div style="font-size:1.1rem;font-weight:600;margin-bottom:8px;">No players yet!</div>
+            <div style="font-size:0.85rem;">Complete a typing test to appear on the leaderboard</div>
+          </td>
+        </tr>`;
+      document.getElementById('lb-stats').innerHTML = '';
+      return;
     }
-
-    const hm = document.getElementById('heatmap');
-    hm.innerHTML = '';
-    for (let i = 0; i < 49; i++) {
-      const cell = document.createElement('div');
-      cell.className = 'hm-cell';
-      const r = Math.random();
-      if (r > 0.85) cell.classList.add('l4');
-      else if (r > 0.65) cell.classList.add('l3');
-      else if (r > 0.4) cell.classList.add('l2');
-      else if (r > 0.2) cell.classList.add('l1');
-      hm.appendChild(cell);
-    }
+    
+    const lbData = data.leaderboard;
+    const totalPlayers = lbData.length;
+    const avgWpm = Math.round(lbData.reduce((sum, u) => sum + u.wpm, 0) / totalPlayers);
+    
+    document.getElementById('lb-stats').innerHTML = `
+      <div class="lb-stat-card">
+        <div class="lb-stat-val" style="color:var(--gold)">${totalPlayers}</div>
+        <div class="lb-stat-label">Players</div>
+      </div>
+      <div class="lb-stat-card">
+        <div class="lb-stat-val" style="color:var(--accent)">${avgWpm}</div>
+        <div class="lb-stat-label">Avg WPM</div>
+      </div>
+      <div class="lb-stat-card">
+        <div class="lb-stat-val" style="color:var(--green)">${lbData[0]?.wpm || 0}</div>
+        <div class="lb-stat-label">Top WPM</div>
+      </div>
+    `;
+    
+    lbData.forEach(e => {
+      const isYou = e.name === state.user?.username;
+      const rankIcon = e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : '';
+      const rankBg = e.rank === 1 ? 'rgba(255,215,0,0.15)' : e.rank === 2 ? 'rgba(192,192,192,0.12)' : e.rank === 3 ? 'rgba(205,127,50,0.12)' : '';
+      const planBadge = e.plan === 'pro' ? '<span class="lb-badge lb-pro">👑 PRO</span>' : '';
+      const accColor = e.acc >= 95 ? 'var(--green)' : e.acc >= 85 ? 'var(--gold)' : e.acc >= 70 ? 'var(--orange)' : 'var(--text2)';
+      const wpmColor = e.wpm >= 80 ? 'var(--gold)' : e.wpm >= 60 ? 'var(--accent)' : e.wpm >= 40 ? 'var(--green)' : 'var(--text)';
+      
+      tbody.innerHTML += `
+        <tr style="${isYou ? 'background:rgba(0,212,255,0.08);' : rankBg ? 'background:' + rankBg : ''}">
+          <td>
+            <span class="lb-rank" style="${e.rank <= 3 ? 'font-size:1.3rem;' : 'color:var(--text2);font-size:0.85rem;'}">
+              ${rankIcon || '#' + e.rank}
+            </span>
+          </td>
+          <td>
+            <div class="lb-player">
+              <span class="lb-name" style="${isYou ? 'color:var(--accent);font-weight:700;' : wpmColor + ';font-weight:600;'}">
+                ${isYou ? '👉 ' : ''}${e.name}${isYou ? ' 👈' : ''}
+              </span>
+              ${planBadge}
+            </div>
+          </td>
+          <td>
+            <span class="lb-wpm" style="color:${wpmColor};font-weight:700;font-size:1.1rem;">${e.wpm}</span>
+            <span style="color:var(--text2);font-size:0.75rem;"> WPM</span>
+          </td>
+          <td>
+            <span class="lb-acc" style="color:${accColor};font-weight:600;">${e.acc}%</span>
+          </td>
+          <td style="color:var(--text2);font-size:0.8rem;">${e.tests} tests</td>
+          <td>
+            <span class="lb-rank-badge ${e.rankClass}">${e.rankLabel}</span>
+          </td>
+        </tr>`;
+    });
+    
+    buildHeatmap();
   } catch (e) {
     console.error('Failed to load leaderboard:', e);
+    document.getElementById('lb-body').innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align:center;padding:40px;color:var(--red);">
+          Failed to load leaderboard. Please try again.
+        </td>
+      </tr>`;
+  }
+}
+
+function buildHeatmap() {
+  const hm = document.getElementById('heatmap');
+  hm.innerHTML = '';
+  for (let i = 0; i < 49; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'hm-cell';
+    const r = Math.random();
+    if (r > 0.85) cell.classList.add('l4');
+    else if (r > 0.65) cell.classList.add('l3');
+    else if (r > 0.4) cell.classList.add('l2');
+    else if (r > 0.2) cell.classList.add('l1');
+    hm.appendChild(cell);
   }
 }
 

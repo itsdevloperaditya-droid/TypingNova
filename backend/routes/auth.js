@@ -83,4 +83,36 @@ router.post('/upgrade-test', async (req, res) => {
   }
 });
 
+// @route   POST /api/auth/test-result
+// @desc    Save test result to user stats
+router.post('/test-result', async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ success: false, message: 'Not authenticated' });
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    const { wpm, accuracy, timeLimit, totalWords } = req.body;
+
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+
+    user.stats.testsDone = (user.stats.testsDone || 0) + 1;
+    user.stats.totalWords = (user.stats.totalWords || 0) + (totalWords || 0);
+    
+    if (wpm && wpm > (user.stats.bestWpm || 0)) {
+      user.stats.bestWpm = wpm;
+    }
+    
+    const currentTotal = (user.stats.avgAccuracy || 0) * (user.stats.testsDone - 1);
+    user.stats.avgAccuracy = Math.round((currentTotal + accuracy) / user.stats.testsDone);
+
+    await user.save();
+
+    res.json({ success: true, stats: user.stats });
+  } catch (error) {
+    console.error('Test result save error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 module.exports = router;

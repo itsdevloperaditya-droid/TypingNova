@@ -6985,6 +6985,9 @@ window.showPage = function(id) {
   } catch(e) {}
   })();
 
+// ✅ Backend Base URL
+const BASE_URL = "https://typenova-backend-p5hu.onrender.com";
+
 // AUTH FUNCTIONS
 let currentUser = null;
 let currentAuthTab = 'login';
@@ -7016,12 +7019,19 @@ function checkAuthAndAction(callback) {
 
 async function handleAuth(e) {
   e.preventDefault();
+
   const username = document.getElementById('auth-username').value;
   const email = document.getElementById('auth-email').value;
   const password = document.getElementById('auth-password').value;
-  
-  const endpoint = currentAuthTab === 'login' ? '/api/auth/login' : '/api/auth/register';
-  const body = currentAuthTab === 'login' ? { email, password } : { username, email, password };
+
+  // ✅ FIXED endpoint (FULL URL)
+  const endpoint = currentAuthTab === 'login'
+    ? `${BASE_URL}/api/auth/login`
+    : `${BASE_URL}/api/auth/register`;
+
+  const body = currentAuthTab === 'login'
+    ? { email, password }
+    : { username, email, password };
 
   try {
     const res = await fetch(endpoint, {
@@ -7029,40 +7039,54 @@ async function handleAuth(e) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    
+
     const data = await res.json();
+    console.log("API Response:", data); // 🔥 debug
+
     if (data.success) {
       currentUser = data.user;
       localStorage.setItem('tg_token', data.token);
       updateAuthUI();
       closeAuthModal();
+
       if (window.pendingAction) {
         window.pendingAction();
         window.pendingAction = null;
       }
+
       showToast('Welcome, ' + currentUser.username + '!', 'success');
     } else {
       showToast(data.message || 'Authentication failed', 'error');
     }
+
   } catch (err) {
+    console.error("Fetch Error:", err); // 🔥 debug
     showToast('Server Error. Please try again later.', 'error');
   }
 }
 
 function updateAuthUI() {
   const authNav = document.getElementById('auth-nav-btn');
+
   if (currentUser) {
-    const upgradeBtn = currentUser.plan === 'basic' ? 
-      `<button class="nav-btn" onclick="openPlansModal()" style="background:linear-gradient(90deg, #ffd700, #ff8800); color:#000; font-weight:800; border:none;"><i data-lucide="zap"></i> UPGRADE</button>` : 
-      `<button class="nav-btn" style="background:rgba(0,212,255,0.1); color:var(--accent); border:1px solid var(--accent); cursor:default;"><i data-lucide="shield-check"></i> PRO GURU</button>`;
-    
+    const upgradeBtn = currentUser.plan === 'basic'
+      ? `<button class="nav-btn" onclick="openPlansModal()" style="background:linear-gradient(90deg, #ffd700, #ff8800); color:#000; font-weight:800; border:none;"><i data-lucide="zap"></i> UPGRADE</button>`
+      : `<button class="nav-btn" style="background:rgba(0,212,255,0.1); color:var(--accent); border:1px solid var(--accent); cursor:default;"><i data-lucide="shield-check"></i> PRO GURU</button>`;
+
     authNav.innerHTML = `
       ${upgradeBtn}
-      <button class="nav-btn btn-primary" onclick="logout()"><i data-lucide="log-out"></i> Logout (${currentUser.username})</button>
+      <button class="nav-btn btn-primary" onclick="logout()">
+        <i data-lucide="log-out"></i> Logout (${currentUser.username})
+      </button>
     `;
   } else {
-    authNav.innerHTML = `<button class="nav-btn btn-primary" onclick="openAuthModal()"><i data-lucide="user"></i> Login</button>`;
+    authNav.innerHTML = `
+      <button class="nav-btn btn-primary" onclick="openAuthModal()">
+        <i data-lucide="user"></i> Login
+      </button>
+    `;
   }
+
   if (typeof lucide !== 'undefined') lucide.createIcons();
 }
 

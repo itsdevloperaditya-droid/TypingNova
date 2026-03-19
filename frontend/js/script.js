@@ -1730,6 +1730,38 @@ function pickAfTimer(val, el) {
   el.classList.add('sel');
 }
 
+function createAiForgeFallbackText(topic, wordTarget) {
+  const cleanTopic = topic.replace(/\s+/g, ' ').trim();
+  const lowerTopic = cleanTopic.toLowerCase();
+  const sentences = [
+    `${cleanTopic} is a topic that rewards careful attention because it connects ideas, decisions, and real world outcomes in a very direct way.`,
+    `When people study ${lowerTopic}, they usually begin by understanding the basic definition, then move toward the patterns, examples, and practical uses that make the subject easier to remember.`,
+    `A strong explanation of ${lowerTopic} should stay clear and concrete, showing how the topic works, why it matters, and where it appears in ordinary life, education, business, or technology.`,
+    `One useful way to think about ${lowerTopic} is to break it into smaller parts, compare those parts, and notice how each one contributes to a larger system or process.`,
+    `This approach helps learners build confidence because the subject stops feeling abstract and starts feeling structured, logical, and easier to discuss in their own words.`,
+    `The history of ${lowerTopic} also matters because earlier ideas often shape current methods, public opinion, and the tools that people now use every day.`,
+    `As new research and innovation continue to develop, ${lowerTopic} keeps changing, which means curiosity, regular practice, and clear communication remain important.`,
+    `People improve fastest when they read examples, summarize the main point, and explain the topic again using simple language that still keeps the meaning accurate.`,
+    `In many situations, the value of ${lowerTopic} becomes obvious only after someone applies it to a real problem and sees how better understanding leads to better results.`,
+    `For that reason, learning about ${lowerTopic} is not just about memorizing facts, but about building judgment, awareness, and the ability to respond thoughtfully.`,
+    `${cleanTopic} can also be viewed from multiple angles, including personal experience, scientific evidence, social impact, and long term consequences.`,
+    `The more a learner revisits ${lowerTopic} through reading, writing, and discussion, the more natural the vocabulary and ideas begin to feel.`,
+    `A balanced perspective is useful because it prevents oversimplification and encourages people to ask better questions before reaching quick conclusions.`,
+    `Clear writing about ${lowerTopic} should sound natural, stay focused, and move from one idea to the next without unnecessary repetition or distracting details.`,
+    `With steady attention and meaningful examples, almost anyone can develop a solid understanding of ${lowerTopic} and use that knowledge with confidence.`
+  ];
+
+  const words = [];
+  let index = 0;
+  while (words.length < wordTarget) {
+    const sentence = sentences[index % sentences.length];
+    words.push(...sentence.split(/\s+/));
+    index++;
+  }
+
+  return words.slice(0, wordTarget).join(' ');
+}
+
 async function afGenerate() {
   const topic = document.getElementById('af-topic').value.trim();
   if (!topic) { afShowStep(1); return; }
@@ -1820,7 +1852,8 @@ async function afGenerate() {
     clearInterval(msgInterval);
 
     if (!generatedText) {
-      throw new Error(lastError || 'All models failed. Please check your API key balance at openrouter.ai');
+      generatedText = createAiForgeFallbackText(topic, afState.words);
+      showToast(lastError ? `AI provider failed (${lastError}). Started with local fallback text.` : 'AI provider unavailable. Started with local fallback text.', 'info');
     }
 
     // Clean up

@@ -828,7 +828,16 @@ function finishTest() {
         wpm: wpm,
         accuracy: acc,
         timeLimit: state.timeLimit,
-        totalWords: Math.floor(state.typedIndex/5)
+        totalWords: Math.floor(state.typedIndex/5),
+        statsSnapshot: {
+          bestWpm: Math.max(...Object.values(state.stats.pbWpm), 0),
+          avgAccuracy: state.stats.accuracies.length
+            ? Math.round(state.stats.accuracies.reduce((a, b) => a + b, 0) / state.stats.accuracies.length)
+            : 0,
+          totalTests: state.stats.totalTests || 0,
+          totalWords: state.stats.totalWords || 0,
+          streak: state.stats.streak || 0
+        }
       };
       
       fetch(`${BASE_URL}/api/auth/test-result`, {
@@ -7367,6 +7376,45 @@ async function restoreAuthSession() {
   }
 
   updateAuthUI();
+
+  if (currentUser) {
+    syncDashboardStatsToServer();
+  }
+}
+
+async function syncDashboardStatsToServer() {
+  const token = localStorage.getItem('tg_token');
+  if (!token || !currentUser) return;
+
+  const bestWpm = Math.max(...Object.values(state.stats.pbWpm), 0);
+  const avgAccuracy = state.stats.accuracies.length
+    ? Math.round(state.stats.accuracies.reduce((a, b) => a + b, 0) / state.stats.accuracies.length)
+    : 0;
+
+  try {
+    const res = await fetch(`${BASE_URL}/api/auth/sync-stats`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        bestWpm,
+        avgAccuracy,
+        totalTests: state.stats.totalTests || 0,
+        totalWords: state.stats.totalWords || 0,
+        streak: state.stats.streak || 0
+      })
+    });
+
+    const data = await res.json();
+    if (data.success && data.user) {
+      currentUser = data.user;
+      localStorage.setItem('tg_user', JSON.stringify(currentUser));
+    }
+  } catch (e) {
+    console.log('Could not sync dashboard stats to server');
+  }
 }
 
 if (document.readyState === 'loading') {

@@ -116,9 +116,11 @@ router.post('/test-result', async (req, res) => {
     const previousAvgAccuracy = Number(user.stats?.avgAccuracy) || 0;
     const previousBestWpm = Number(user.stats?.bestWpm) || 0;
     const previousTotalWords = Number(user.stats?.totalWords) || 0;
+    const previousStreak = Number(user.stats?.streak) || 0;
 
     user.stats.testsDone = previousTests + 1;
     user.stats.totalWords = previousTotalWords + totalWords;
+    user.stats.streak = previousStreak + 1;
 
     if (wpm > previousBestWpm) {
       user.stats.bestWpm = wpm;

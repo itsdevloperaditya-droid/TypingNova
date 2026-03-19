@@ -28,7 +28,8 @@ const UserSchema = new mongoose.Schema({
     bestWpm: { type: Number, default: 0 },
     testsDone: { type: Number, default: 0 },
     avgAccuracy: { type: Number, default: 0 },
-    totalWords: { type: Number, default: 0 }
+    totalWords: { type: Number, default: 0 },
+    streak: { type: Number, default: 0 }
   },
   plan: {
     type: String,

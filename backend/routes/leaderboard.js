@@ -8,6 +8,7 @@ const toPublicLeaderboardEntry = (user, index) => {
   const acc = Number(stats.avgAccuracy) || 0;
   const tests = Number(stats.testsDone) || 0;
   const totalWords = Number(stats.totalWords) || 0;
+  const streak = Number(stats.streak) || 0;
 
   let rank = index + 1;
   let rankLabel = 'C';
@@ -43,11 +44,15 @@ const toPublicLeaderboardEntry = (user, index) => {
   return {
     id: String(user._id),
     rank,
+    username: user.username,
     name: user.username,
     wpm,
+    accuracy: acc > 0 ? Math.round(acc * 10) / 10 : 0,
     acc: acc > 0 ? Math.round(acc * 10) / 10 : 0,
     tests,
+    words: totalWords,
     totalWords,
+    streak,
     plan: user.plan || 'basic',
     rankLabel,
     rankClass,

@@ -1418,6 +1418,9 @@ async function buildLeaderboard() {
             if (meData.user.stats.totalWords > 0) {
               state.stats.totalWords = meData.user.stats.totalWords;
             }
+            if ((Number(meData.user.stats.streak) || 0) > 0) {
+              state.stats.streak = Number(meData.user.stats.streak) || 0;
+            }
             localStorage.setItem('tg_stats', JSON.stringify(state.stats));
             updateStatsBar();
           }
@@ -1448,10 +1451,11 @@ async function buildLeaderboard() {
     
     const lbData = data.leaderboard.map(entry => ({
       ...entry,
+      username: entry.username || entry.name,
       wpm: Number(entry.wpm) || 0,
-      acc: Number(entry.acc) || 0,
+      accuracy: Number(entry.accuracy ?? entry.acc) || 0,
       tests: Number(entry.tests) || 0,
-      totalWords: Number(entry.totalWords) || 0,
+      words: Number(entry.words ?? entry.totalWords) || 0,
       streak: Number(entry.streak) || 0,
       plan: entry.plan || 'basic',
       hasTested: (Number(entry.tests) || 0) > 0
@@ -1472,20 +1476,21 @@ async function buildLeaderboard() {
       if (userIndex !== -1) {
         if (userTests > lbData[userIndex].tests || userWpm > lbData[userIndex].wpm) {
           lbData[userIndex].wpm = userWpm;
-          lbData[userIndex].acc = userAcc;
+          lbData[userIndex].accuracy = userAcc;
           lbData[userIndex].tests = userTests;
-          lbData[userIndex].totalWords = userWords;
+          lbData[userIndex].words = userWords;
           lbData[userIndex].hasTested = userTests > 0;
         }
         lbData[userIndex].streak = userStreak;
       } else {
         lbData.push({
           rank: lbData.length + 1,
+          username: currentUser.username,
           name: currentUser.username,
           wpm: userWpm,
-          acc: userAcc,
+          accuracy: userAcc,
           tests: userTests,
-          totalWords: userWords,
+          words: userWords,
           streak: userStreak,
           plan: currentUser.plan || 'basic',
           rankLabel: userWpm >= 80 ? 'A' : userWpm >= 60 ? 'B+' : userWpm >= 40 ? 'B' : userWpm >= 30 ? 'C+' : 'C',
@@ -1498,7 +1503,7 @@ async function buildLeaderboard() {
     // Re-sort based on WPM (highest first), then by accuracy
     lbData.sort((a, b) => {
       if (b.wpm !== a.wpm) return b.wpm - a.wpm;
-      return b.acc - a.acc;
+      return b.accuracy - a.accuracy;
     });
     
     // Update ranks after sorting
@@ -1508,9 +1513,9 @@ async function buildLeaderboard() {
       if (e.rank === 1) { e.rankLabel = 'S+'; e.rankClass = 'rank-s-plus'; }
       else if (e.rank === 2) { e.rankLabel = 'S'; e.rankClass = 'rank-s'; }
       else if (e.rank === 3) { e.rankLabel = 'A+'; e.rankClass = 'rank-a-plus'; }
-      else if (e.wpm >= 80 && e.acc >= 95) { e.rankLabel = 'A'; e.rankClass = 'rank-a'; }
-      else if (e.wpm >= 60 && e.acc >= 90) { e.rankLabel = 'B+'; e.rankClass = 'rank-b-plus'; }
-      else if (e.wpm >= 40 && e.acc >= 80) { e.rankLabel = 'B'; e.rankClass = 'rank-b'; }
+      else if (e.wpm >= 80 && e.accuracy >= 95) { e.rankLabel = 'A'; e.rankClass = 'rank-a'; }
+      else if (e.wpm >= 60 && e.accuracy >= 90) { e.rankLabel = 'B+'; e.rankClass = 'rank-b-plus'; }
+      else if (e.wpm >= 40 && e.accuracy >= 80) { e.rankLabel = 'B'; e.rankClass = 'rank-b'; }
       else if (e.wpm >= 30) { e.rankLabel = 'C+'; e.rankClass = 'rank-c-plus'; }
       else { e.rankLabel = 'C'; e.rankClass = 'rank-c'; }
     });
@@ -1560,7 +1565,7 @@ async function buildLeaderboard() {
       const rankIcon = e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : '';
       const rankBg = e.rank === 1 ? 'rgba(255,215,0,0.15)' : e.rank === 2 ? 'rgba(192,192,192,0.12)' : e.rank === 3 ? 'rgba(205,127,50,0.12)' : '';
       const planBadge = e.plan === 'pro' ? '<span class="lb-badge lb-pro">👑 PRO</span>' : '';
-      const accColor = e.acc >= 95 ? 'var(--green)' : e.acc >= 85 ? 'var(--gold)' : e.acc >= 70 ? 'var(--orange)' : 'var(--text2)';
+      const accColor = e.accuracy >= 95 ? 'var(--green)' : e.accuracy >= 85 ? 'var(--gold)' : e.accuracy >= 70 ? 'var(--orange)' : 'var(--text2)';
       const wpmColor = e.wpm >= 80 ? 'var(--gold)' : e.wpm >= 60 ? 'var(--accent)' : e.wpm >= 40 ? 'var(--green)' : 'var(--text)';
       const isNew = !e.hasTested;
       const streak = e.streak || 0;
@@ -1576,7 +1581,7 @@ async function buildLeaderboard() {
           <td>
             <div class="lb-player">
               <span class="lb-name" style="${isYou ? 'color:var(--accent);font-weight:700;' : isNew ? 'color:var(--text2);' : wpmColor + ';font-weight:600;'}">
-                ${isYou ? '👉 ' : ''}${e.name}${isYou ? ' 👈' : ''}
+                ${isYou ? '👉 ' : ''}${e.username || e.name}${isYou ? ' 👈' : ''}
               </span>
               ${planBadge}
               ${isNew ? '<span class="lb-badge lb-new">NEW</span>' : ''}
@@ -1586,10 +1591,10 @@ async function buildLeaderboard() {
             <span class="lb-wpm" style="color:${isNew ? 'var(--text2)' : wpmColor};font-weight:700;font-size:1rem;">${e.wpm}</span>
           </td>
           <td>
-            <span class="lb-acc" style="color:${isNew ? 'var(--text2)' : accColor};font-weight:600;">${e.acc}%</span>
+            <span class="lb-acc" style="color:${isNew ? 'var(--text2)' : accColor};font-weight:600;">${e.accuracy}%</span>
           </td>
           <td style="color:var(--text2);font-size:0.85rem;">${e.tests}</td>
-          <td style="color:var(--text2);font-size:0.85rem;">${e.totalWords || 0}</td>
+          <td style="color:var(--text2);font-size:0.85rem;">${e.words || 0}</td>
           <td style="color:${streakColor};font-weight:600;font-size:0.85rem;">🔥 ${streak}</td>
           <td>
             <span class="lb-rank-badge ${e.rankClass}">${e.rankLabel}</span>

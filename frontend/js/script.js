@@ -63,7 +63,7 @@ const words = {
       `numbers = list(filter(lambda x: x > 0, [-3, -1, 0, 2, 5, 8])); total = sum(numbers)`
     ],
     typescript: [
-      `interface User { id: number; name: string; email?: string; } const getUser = async (id: number): Promise<User> => { return fetch('/api/users/'+id).then(r => r.json()); }`,
+      `interface User { id: number; name: string; email?: string; } const getUser = async (id: number): Promise<User> => { return fetch('https://typenova-backend-p5hu.onrender.com/api/auth/login'+id).then(r => r.json()); }`,
       `type Result<T, E> = { success: true; data: T } | { success: false; error: E };`,
       `const useLocalStorage = <T>(key: string, initial: T): [T, (val: T) => void] => { const [state, setState] = useState<T>(initial); return [state, setState]; };`,
       `enum Direction { Up = 'UP', Down = 'DOWN', Left = 'LEFT', Right = 'RIGHT' }`,
@@ -7078,7 +7078,7 @@ async function checkCurrent() {
   const token = localStorage.getItem('tg_token');
   if (!token) return;
   try {
-    const res = await fetch('/api/auth/me', {
+    const res = await fetch('https://typenova-backend-p5hu.onrender.com/api/auth/login', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
     const data = await res.json();
@@ -7130,7 +7130,7 @@ async function handleUpgrade() {
   btn.disabled = true;
   
   try {
-    const res = await fetch('/api/auth/upgrade-test', {
+    const res = await fetch('https://typenova-backend-p5hu.onrender.com/api/auth/login', {
       method: 'POST',
       headers: { 
         'Authorization': `Bearer ${localStorage.getItem('tg_token')}`,

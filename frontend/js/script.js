@@ -1446,7 +1446,16 @@ async function buildLeaderboard() {
       return;
     }
     
-    const lbData = data.leaderboard;
+    const lbData = data.leaderboard.map(entry => ({
+      ...entry,
+      wpm: Number(entry.wpm) || 0,
+      acc: Number(entry.acc) || 0,
+      tests: Number(entry.tests) || 0,
+      totalWords: Number(entry.totalWords) || 0,
+      streak: Number(entry.streak) || 0,
+      plan: entry.plan || 'basic',
+      hasTested: (Number(entry.tests) || 0) > 0
+    }));
     
     // Get current user's local stats (from website top bar)
     let userWpm = Math.max(...Object.values(state.stats.pbWpm), 0);
@@ -1457,22 +1466,19 @@ async function buildLeaderboard() {
     let userWords = state.stats.totalWords || 0;
     let userStreak = state.stats.streak || 0;
     
-    // Update current user's data with local stats (which are more up-to-date)
+    // Only patch the current user's row when the local session is ahead of the last server sync.
     if (currentUser) {
       const userIndex = lbData.findIndex(u => u.name.toLowerCase() === currentUser.username.toLowerCase());
       if (userIndex !== -1) {
-        // User exists in leaderboard - use local stats if they have tests, otherwise use server stats
-        if (userTests > 0) {
+        if (userTests > lbData[userIndex].tests || userWpm > lbData[userIndex].wpm) {
           lbData[userIndex].wpm = userWpm;
           lbData[userIndex].acc = userAcc;
           lbData[userIndex].tests = userTests;
           lbData[userIndex].totalWords = userWords;
-          lbData[userIndex].hasTested = true;
+          lbData[userIndex].hasTested = userTests > 0;
         }
-        // Always use local streak
         lbData[userIndex].streak = userStreak;
       } else {
-        // User not in leaderboard yet, add them
         lbData.push({
           rank: lbData.length + 1,
           name: currentUser.username,
@@ -7230,7 +7236,9 @@ window.showPage = function(id) {
   })();
 
 // ✅ Backend Base URL
-const BASE_URL = "https://typenova-backend-p5hu.onrender.com";
+const BASE_URL = window.location.origin && /^https?:/i.test(window.location.origin)
+  ? window.location.origin
+  : "https://typenova-backend-p5hu.onrender.com";
 
 // AUTH FUNCTIONS
 let currentUser = null;

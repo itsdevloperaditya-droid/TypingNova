@@ -101,7 +101,9 @@ router.post('/test-result', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid token' });
     }
 
-    const { wpm, accuracy, timeLimit, totalWords } = req.body;
+    const wpm = Number(req.body.wpm) || 0;
+    const accuracy = Number(req.body.accuracy) || 0;
+    const totalWords = Number(req.body.totalWords) || 0;
     console.log('Test result received:', { wpm, accuracy, totalWords, userId: decoded.id });
 
     const user = await User.findById(decoded.id);
@@ -110,15 +112,21 @@ router.post('/test-result', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    user.stats.testsDone = (user.stats.testsDone || 0) + 1;
-    user.stats.totalWords = (user.stats.totalWords || 0) + (totalWords || 0);
-    
-    if (wpm && wpm > (user.stats.bestWpm || 0)) {
+    const previousTests = Number(user.stats?.testsDone) || 0;
+    const previousAvgAccuracy = Number(user.stats?.avgAccuracy) || 0;
+    const previousBestWpm = Number(user.stats?.bestWpm) || 0;
+    const previousTotalWords = Number(user.stats?.totalWords) || 0;
+
+    user.stats.testsDone = previousTests + 1;
+    user.stats.totalWords = previousTotalWords + totalWords;
+
+    if (wpm > previousBestWpm) {
       user.stats.bestWpm = wpm;
     }
-    
-    const currentTotal = (user.stats.avgAccuracy || 0) * (user.stats.testsDone - 1);
-    user.stats.avgAccuracy = Math.round((currentTotal + accuracy) / user.stats.testsDone);
+
+    const currentTotalAccuracy = previousAvgAccuracy * previousTests;
+    user.stats.avgAccuracy = Math.round(((currentTotalAccuracy + accuracy) / user.stats.testsDone) * 10) / 10;
+    user.markModified('stats');
 
     await user.save();
     console.log('Stats saved for user:', user.username, user.stats);

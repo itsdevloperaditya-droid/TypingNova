@@ -88,13 +88,27 @@ router.post('/upgrade-test', async (req, res) => {
 router.post('/test-result', async (req, res) => {
   try {
     const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ success: false, message: 'Not authenticated' });
+    if (!token) {
+      console.log('Test result: No token provided');
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret');
+    } catch(e) {
+      console.log('Test result: Invalid token');
+      return res.status(401).json({ success: false, message: 'Invalid token' });
+    }
+
     const { wpm, accuracy, timeLimit, totalWords } = req.body;
+    console.log('Test result received:', { wpm, accuracy, totalWords, userId: decoded.id });
 
     const user = await User.findById(decoded.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+    if (!user) {
+      console.log('Test result: User not found');
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
 
     user.stats.testsDone = (user.stats.testsDone || 0) + 1;
     user.stats.totalWords = (user.stats.totalWords || 0) + (totalWords || 0);
@@ -107,6 +121,7 @@ router.post('/test-result', async (req, res) => {
     user.stats.avgAccuracy = Math.round((currentTotal + accuracy) / user.stats.testsDone);
 
     await user.save();
+    console.log('Stats saved for user:', user.username, user.stats);
 
     res.json({ success: true, stats: user.stats });
   } catch (error) {

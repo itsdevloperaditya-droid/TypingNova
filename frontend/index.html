@@ -1225,7 +1225,21 @@
 
   <!-- LEADERBOARD PAGE -->
   <div id="page-leaderboard" class="page">
-    <div class="section-title">🏆 Global Leaderboard</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div class="section-title" style="margin-bottom:0;">🏆 Global Leaderboard</div>
+      <button onclick="buildLeaderboard()" style="background:var(--panel);border:1px solid var(--border);color:var(--text2);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;gap:6px;">
+        <span>🔄</span> Refresh
+      </button>
+    </div>
+    <div id="lb-login-banner" style="background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.3);border-radius:10px;padding:14px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;font-size:0.9rem;">
+        <span id="lb-login-icon" style="font-size:1.2rem;">👤</span>
+        <span id="lb-login-text" style="color:var(--text2);">Login to save your stats and compete!</span>
+      </div>
+      <button id="lb-login-btn" onclick="openAuthModal()" style="background:linear-gradient(90deg,var(--accent),var(--accent3));border:none;color:white;padding:8px 20px;border-radius:8px;cursor:pointer;font-size:0.8rem;font-weight:600;">
+        Login
+      </button>
+    </div>
     <div id="lb-stats" style="display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;"></div>
     <div style="background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-bottom:30px">
       <table class="lb-table">

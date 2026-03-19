@@ -824,24 +824,31 @@ function finishTest() {
   if (currentUser) {
     const token = localStorage.getItem('tg_token');
     if (token) {
+      const testData = {
+        wpm: wpm,
+        accuracy: acc,
+        timeLimit: state.timeLimit,
+        totalWords: Math.floor(state.typedIndex/5)
+      };
+      
       fetch(`${BASE_URL}/api/auth/test-result`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          wpm,
-          accuracy: acc,
-          timeLimit: state.timeLimit,
-          totalWords: Math.floor(state.typedIndex/5)
-        })
-      }).then(res => res.json()).then(data => {
-        if (data.success) {
+        body: JSON.stringify(testData)
+      })
+      .then(async res => {
+        const data = await res.json();
+        if (data.success && data.stats) {
           currentUser.stats = data.stats;
           localStorage.setItem('tg_user', JSON.stringify(currentUser));
         }
-      }).catch(e => console.log('Failed to save test result to server'));
+      })
+      .catch(e => {
+        console.log('Stats saved locally only');
+      });
     }
   }
 
@@ -1395,10 +1402,12 @@ async function buildLeaderboard() {
           const meData = await meRes.json();
           if (meData.success && meData.user && meData.user.stats) {
             currentUser.stats = meData.user.stats;
-            // Update local state with server stats
+            // Update local state with server stats (use server stats if they're better)
             if (meData.user.stats.bestWpm > 0) {
               state.stats.pbWpm = state.stats.pbWpm || {};
               state.stats.pbWpm[60] = Math.max(state.stats.pbWpm[60] || 0, meData.user.stats.bestWpm);
+              state.stats.pbWpm[15] = state.stats.pbWpm[15] || meData.user.stats.bestWpm;
+              state.stats.pbWpm[30] = state.stats.pbWpm[30] || meData.user.stats.bestWpm;
             }
             if (meData.user.stats.testsDone > 0) {
               state.stats.totalTests = meData.user.stats.testsDone;
@@ -1409,6 +1418,8 @@ async function buildLeaderboard() {
             if (meData.user.stats.totalWords > 0) {
               state.stats.totalWords = meData.user.stats.totalWords;
             }
+            localStorage.setItem('tg_stats', JSON.stringify(state.stats));
+            updateStatsBar();
           }
         } catch(e) {
           console.log('Could not sync stats from server');
@@ -1446,25 +1457,20 @@ async function buildLeaderboard() {
     let userWords = state.stats.totalWords || 0;
     let userStreak = state.stats.streak || 0;
     
-    // Merge local stats with current user data
+    // Update current user's data with local stats (which are more up-to-date)
     if (currentUser) {
-      const userIndex = lbData.findIndex(u => u.name === currentUser.username);
+      const userIndex = lbData.findIndex(u => u.name.toLowerCase() === currentUser.username.toLowerCase());
       if (userIndex !== -1) {
-        // Update user's stats with local data
-        lbData[userIndex].wpm = userWpm;
-        lbData[userIndex].acc = userAcc;
-        lbData[userIndex].tests = userTests;
-        lbData[userIndex].totalWords = userWords;
+        // User exists in leaderboard - use local stats if they have tests, otherwise use server stats
+        if (userTests > 0) {
+          lbData[userIndex].wpm = userWpm;
+          lbData[userIndex].acc = userAcc;
+          lbData[userIndex].tests = userTests;
+          lbData[userIndex].totalWords = userWords;
+          lbData[userIndex].hasTested = true;
+        }
+        // Always use local streak
         lbData[userIndex].streak = userStreak;
-        lbData[userIndex].hasTested = userTests > 0;
-        
-        // Recalculate rank label based on updated WPM
-        const u = lbData[userIndex];
-        if (u.wpm >= 80 && u.acc >= 95) { u.rankLabel = 'A'; u.rankClass = 'rank-a'; }
-        else if (u.wpm >= 60 && u.acc >= 90) { u.rankLabel = 'B+'; u.rankClass = 'rank-b-plus'; }
-        else if (u.wpm >= 40 && u.acc >= 80) { u.rankLabel = 'B'; u.rankClass = 'rank-b'; }
-        else if (u.wpm >= 30) { u.rankLabel = 'C+'; u.rankClass = 'rank-c-plus'; }
-        else { u.rankLabel = 'C'; u.rankClass = 'rank-c'; }
       } else {
         // User not in leaderboard yet, add them
         lbData.push({
@@ -1475,7 +1481,7 @@ async function buildLeaderboard() {
           tests: userTests,
           totalWords: userWords,
           streak: userStreak,
-          plan: currentUser.plan,
+          plan: currentUser.plan || 'basic',
           rankLabel: userWpm >= 80 ? 'A' : userWpm >= 60 ? 'B+' : userWpm >= 40 ? 'B' : userWpm >= 30 ? 'C+' : 'C',
           rankClass: userWpm >= 80 ? 'rank-a' : userWpm >= 60 ? 'rank-b-plus' : userWpm >= 40 ? 'rank-b' : userWpm >= 30 ? 'rank-c-plus' : 'rank-c',
           hasTested: userTests > 0
@@ -1509,6 +1515,21 @@ async function buildLeaderboard() {
     const avgWpm = testedCount > 0 ? Math.round(testedUsers.reduce((sum, u) => sum + u.wpm, 0) / testedCount) : 0;
     const topWpm = testedCount > 0 ? Math.max(...testedUsers.map(u => u.wpm)) : 0;
     
+    // Update login banner
+    if (currentUser) {
+      document.getElementById('lb-login-icon').textContent = '✅';
+      document.getElementById('lb-login-text').textContent = `Logged in as ${currentUser.username} - Your stats will be saved!`;
+      document.getElementById('lb-login-banner').style.background = 'rgba(0,255,136,0.1)';
+      document.getElementById('lb-login-banner').style.borderColor = 'rgba(0,255,136,0.3)';
+      document.getElementById('lb-login-btn').style.display = 'none';
+    } else {
+      document.getElementById('lb-login-icon').textContent = '👤';
+      document.getElementById('lb-login-text').textContent = 'Login to save your stats and compete!';
+      document.getElementById('lb-login-banner').style.background = 'rgba(255,165,0,0.1)';
+      document.getElementById('lb-login-banner').style.borderColor = 'rgba(255,165,0,0.3)';
+      document.getElementById('lb-login-btn').style.display = 'block';
+    }
+    
     document.getElementById('lb-stats').innerHTML = `
       <div class="lb-stat-card">
         <div class="lb-stat-val" style="color:var(--gold)">${totalPlayers}</div>
@@ -1529,7 +1550,7 @@ async function buildLeaderboard() {
     `;
     
     lbData.forEach(e => {
-      const isYou = e.name === currentUser?.username;
+      const isYou = currentUser && e.name.toLowerCase() === currentUser.username.toLowerCase();
       const rankIcon = e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : '';
       const rankBg = e.rank === 1 ? 'rgba(255,215,0,0.15)' : e.rank === 2 ? 'rgba(192,192,192,0.12)' : e.rank === 3 ? 'rgba(205,127,50,0.12)' : '';
       const planBadge = e.plan === 'pro' ? '<span class="lb-badge lb-pro">👑 PRO</span>' : '';
@@ -7312,6 +7333,24 @@ function updateAuthUI() {
   }
 
   if (typeof lucide !== 'undefined') lucide.createIcons();
+  
+  // Update leaderboard banner if visible
+  const lbBanner = document.getElementById('lb-login-banner');
+  if (lbBanner) {
+    if (currentUser) {
+      document.getElementById('lb-login-icon').textContent = '✅';
+      document.getElementById('lb-login-text').textContent = `Logged in as ${currentUser.username} - Your stats will be saved!`;
+      lbBanner.style.background = 'rgba(0,255,136,0.1)';
+      lbBanner.style.borderColor = 'rgba(0,255,136,0.3)';
+      document.getElementById('lb-login-btn').style.display = 'none';
+    } else {
+      document.getElementById('lb-login-icon').textContent = '👤';
+      document.getElementById('lb-login-text').textContent = 'Login to save your stats and compete!';
+      lbBanner.style.background = 'rgba(255,165,0,0.1)';
+      lbBanner.style.borderColor = 'rgba(255,165,0,0.3)';
+      document.getElementById('lb-login-btn').style.display = 'block';
+    }
+  }
 }
 
 function logout() {

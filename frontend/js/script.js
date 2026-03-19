@@ -823,7 +823,6 @@ function finishTest() {
   // Save to server if logged in
   if (currentUser) {
     const token = localStorage.getItem('token');
-    console.log('Saving test result for user:', currentUser.username, 'Token exists:', !!token);
     fetch(`${BASE_URL}/api/auth/test-result`, {
       method: 'POST',
       headers: {
@@ -836,10 +835,7 @@ function finishTest() {
         timeLimit: state.timeLimit,
         totalWords: Math.floor(state.typedIndex/5)
       })
-    })
-    .then(res => res.json())
-    .then(data => console.log('Test result saved:', data))
-    .catch(e => console.log('Failed to save test result to server:', e));
+    }).catch(e => console.log('Failed to save test result to server'));
   }
 
   // Format time display
@@ -1381,10 +1377,8 @@ function endWordRain() {
 // 
 async function buildLeaderboard() {
   try {
-    console.log('Building leaderboard...');
     const res = await fetch(`${BASE_URL}/api/leaderboard`);
     const data = await res.json();
-    console.log('Leaderboard data:', data);
     
     const tbody = document.getElementById('lb-body');
     tbody.innerHTML = '';
@@ -1392,7 +1386,7 @@ async function buildLeaderboard() {
     if (!data.success || !data.leaderboard || data.leaderboard.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="6" style="text-align:center;padding:60px;color:var(--text2);">
+          <td colspan="8" style="text-align:center;padding:60px;color:var(--text2);">
             <div style="font-size:3rem;margin-bottom:16px;">🏆</div>
             <div style="font-size:1.1rem;font-weight:600;margin-bottom:8px;">No players yet!</div>
             <div style="font-size:0.85rem;">Complete a typing test to appear on the leaderboard</div>
@@ -1403,6 +1397,73 @@ async function buildLeaderboard() {
     }
     
     const lbData = data.leaderboard;
+    
+    // Get current user's local stats (from website top bar)
+    let userWpm = Math.max(...Object.values(state.stats.pbWpm), 0);
+    let userAcc = state.stats.accuracies.length 
+      ? Math.round(state.stats.accuracies.reduce((a,b)=>a+b,0)/state.stats.accuracies.length) 
+      : 0;
+    let userTests = state.stats.totalTests || 0;
+    let userWords = state.stats.totalWords || 0;
+    let userStreak = state.stats.streak || 0;
+    
+    // Merge local stats with current user data
+    if (currentUser) {
+      const userIndex = lbData.findIndex(u => u.name === currentUser.username);
+      if (userIndex !== -1) {
+        // Update user's stats with local data
+        lbData[userIndex].wpm = userWpm;
+        lbData[userIndex].acc = userAcc;
+        lbData[userIndex].tests = userTests;
+        lbData[userIndex].totalWords = userWords;
+        lbData[userIndex].streak = userStreak;
+        lbData[userIndex].hasTested = userTests > 0;
+        
+        // Recalculate rank label based on updated WPM
+        const u = lbData[userIndex];
+        if (u.wpm >= 80 && u.acc >= 95) { u.rankLabel = 'A'; u.rankClass = 'rank-a'; }
+        else if (u.wpm >= 60 && u.acc >= 90) { u.rankLabel = 'B+'; u.rankClass = 'rank-b-plus'; }
+        else if (u.wpm >= 40 && u.acc >= 80) { u.rankLabel = 'B'; u.rankClass = 'rank-b'; }
+        else if (u.wpm >= 30) { u.rankLabel = 'C+'; u.rankClass = 'rank-c-plus'; }
+        else { u.rankLabel = 'C'; u.rankClass = 'rank-c'; }
+      } else {
+        // User not in leaderboard yet, add them
+        lbData.push({
+          rank: lbData.length + 1,
+          name: currentUser.username,
+          wpm: userWpm,
+          acc: userAcc,
+          tests: userTests,
+          totalWords: userWords,
+          streak: userStreak,
+          plan: currentUser.plan,
+          rankLabel: userWpm >= 80 ? 'A' : userWpm >= 60 ? 'B+' : userWpm >= 40 ? 'B' : userWpm >= 30 ? 'C+' : 'C',
+          rankClass: userWpm >= 80 ? 'rank-a' : userWpm >= 60 ? 'rank-b-plus' : userWpm >= 40 ? 'rank-b' : userWpm >= 30 ? 'rank-c-plus' : 'rank-c',
+          hasTested: userTests > 0
+        });
+      }
+    }
+    
+    // Re-sort based on WPM (highest first), then by accuracy
+    lbData.sort((a, b) => {
+      if (b.wpm !== a.wpm) return b.wpm - a.wpm;
+      return b.acc - a.acc;
+    });
+    
+    // Update ranks after sorting
+    lbData.forEach((e, index) => {
+      e.rank = index + 1;
+      // Update rank badges
+      if (e.rank === 1) { e.rankLabel = 'S+'; e.rankClass = 'rank-s-plus'; }
+      else if (e.rank === 2) { e.rankLabel = 'S'; e.rankClass = 'rank-s'; }
+      else if (e.rank === 3) { e.rankLabel = 'A+'; e.rankClass = 'rank-a-plus'; }
+      else if (e.wpm >= 80 && e.acc >= 95) { e.rankLabel = 'A'; e.rankClass = 'rank-a'; }
+      else if (e.wpm >= 60 && e.acc >= 90) { e.rankLabel = 'B+'; e.rankClass = 'rank-b-plus'; }
+      else if (e.wpm >= 40 && e.acc >= 80) { e.rankLabel = 'B'; e.rankClass = 'rank-b'; }
+      else if (e.wpm >= 30) { e.rankLabel = 'C+'; e.rankClass = 'rank-c-plus'; }
+      else { e.rankLabel = 'C'; e.rankClass = 'rank-c'; }
+    });
+    
     const testedUsers = lbData.filter(u => u.tests > 0);
     const totalPlayers = lbData.length;
     const testedCount = testedUsers.length;
@@ -1436,6 +1497,8 @@ async function buildLeaderboard() {
       const accColor = e.acc >= 95 ? 'var(--green)' : e.acc >= 85 ? 'var(--gold)' : e.acc >= 70 ? 'var(--orange)' : 'var(--text2)';
       const wpmColor = e.wpm >= 80 ? 'var(--gold)' : e.wpm >= 60 ? 'var(--accent)' : e.wpm >= 40 ? 'var(--green)' : 'var(--text)';
       const isNew = !e.hasTested;
+      const streak = e.streak || 0;
+      const streakColor = streak >= 10 ? 'var(--gold)' : streak >= 5 ? 'var(--accent)' : streak > 0 ? 'var(--green)' : 'var(--text2)';
       
       tbody.innerHTML += `
         <tr style="${isYou ? 'background:rgba(0,212,255,0.08);' : rankBg ? 'background:' + rankBg : ''}">
@@ -1454,13 +1517,14 @@ async function buildLeaderboard() {
             </div>
           </td>
           <td>
-            <span class="lb-wpm" style="color:${isNew ? 'var(--text2)' : wpmColor};font-weight:700;font-size:1.1rem;">${e.wpm}</span>
-            <span style="color:var(--text2);font-size:0.75rem;"> WPM</span>
+            <span class="lb-wpm" style="color:${isNew ? 'var(--text2)' : wpmColor};font-weight:700;font-size:1rem;">${e.wpm}</span>
           </td>
           <td>
             <span class="lb-acc" style="color:${isNew ? 'var(--text2)' : accColor};font-weight:600;">${e.acc}%</span>
           </td>
-          <td style="color:var(--text2);font-size:0.8rem;">${e.tests} tests</td>
+          <td style="color:var(--text2);font-size:0.85rem;">${e.tests}</td>
+          <td style="color:var(--text2);font-size:0.85rem;">${e.totalWords || 0}</td>
+          <td style="color:${streakColor};font-weight:600;font-size:0.85rem;">🔥 ${streak}</td>
           <td>
             <span class="lb-rank-badge ${e.rankClass}">${e.rankLabel}</span>
           </td>
@@ -1472,7 +1536,7 @@ async function buildLeaderboard() {
     console.error('Failed to load leaderboard:', e);
     document.getElementById('lb-body').innerHTML = `
       <tr>
-        <td colspan="6" style="text-align:center;padding:40px;color:var(--red);">
+        <td colspan="8" style="text-align:center;padding:40px;color:var(--red);">
           Failed to load leaderboard. Please try again.
         </td>
       </tr>`;

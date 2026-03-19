@@ -4,16 +4,10 @@ const User = require('../models/User');
 
 router.get('/', async (req, res) => {
   try {
-    console.log('Leaderboard API called');
     const users = await User.find({})
       .select('username email stats plan createdAt')
       .sort({ 'stats.bestWpm': -1, 'stats.avgAccuracy': -1 })
       .limit(100);
-
-    console.log('Users found:', users.length);
-    users.forEach(u => {
-      console.log('User:', u.username, 'Stats:', u.stats);
-    });
 
     const leaderboard = users.map((user, index) => {
       const wpm = user.stats?.bestWpm || 0;

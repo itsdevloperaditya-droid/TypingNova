@@ -4,22 +4,32 @@ const User = require('../models/User');
 
 router.get('/', async (req, res) => {
   try {
-    const users = await User.find({ 'stats.testsDone': { $gt: 0 } })
+    console.log('Leaderboard API called');
+    const users = await User.find({})
       .select('username email stats plan createdAt')
       .sort({ 'stats.bestWpm': -1, 'stats.avgAccuracy': -1 })
       .limit(100);
 
+    console.log('Users found:', users.length);
+    users.forEach(u => {
+      console.log('User:', u.username, 'Stats:', u.stats);
+    });
+
     const leaderboard = users.map((user, index) => {
-      const wpm = user.stats.bestWpm || 0;
-      const acc = user.stats.avgAccuracy || 0;
-      const tests = user.stats.testsDone || 0;
-      const totalWords = user.stats.totalWords || 0;
+      const wpm = user.stats?.bestWpm || 0;
+      const acc = user.stats?.avgAccuracy || 0;
+      const tests = user.stats?.testsDone || 0;
+      const totalWords = user.stats?.totalWords || 0;
       
       let rank = index + 1;
       let rankLabel = 'C';
       let rankClass = 'rank-c';
+      let hasTested = tests > 0;
       
-      if (rank === 1) { rankLabel = 'S+'; rankClass = 'rank-s-plus'; }
+      if (!hasTested) {
+        rankLabel = 'NEW';
+        rankClass = 'rank-new';
+      } else if (rank === 1) { rankLabel = 'S+'; rankClass = 'rank-s-plus'; }
       else if (rank === 2) { rankLabel = 'S'; rankClass = 'rank-s'; }
       else if (rank === 3) { rankLabel = 'A+'; rankClass = 'rank-a-plus'; }
       else if (wpm >= 80 && acc >= 95) { rankLabel = 'A'; rankClass = 'rank-a'; }
@@ -38,6 +48,7 @@ router.get('/', async (req, res) => {
         plan: user.plan,
         rankLabel,
         rankClass,
+        hasTested,
         joinedAt: user.createdAt
       };
     });

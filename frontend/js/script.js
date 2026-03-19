@@ -822,11 +822,13 @@ function finishTest() {
   
   // Save to server if logged in
   if (currentUser) {
+    const token = localStorage.getItem('token');
+    console.log('Saving test result for user:', currentUser.username, 'Token exists:', !!token);
     fetch(`${BASE_URL}/api/auth/test-result`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
+        'Authorization': `Bearer ${token}`
       },
       body: JSON.stringify({
         wpm,
@@ -834,7 +836,10 @@ function finishTest() {
         timeLimit: state.timeLimit,
         totalWords: Math.floor(state.typedIndex/5)
       })
-    }).catch(e => console.log('Failed to save test result to server'));
+    })
+    .then(res => res.json())
+    .then(data => console.log('Test result saved:', data))
+    .catch(e => console.log('Failed to save test result to server:', e));
   }
 
   // Format time display
@@ -1376,8 +1381,10 @@ function endWordRain() {
 // 
 async function buildLeaderboard() {
   try {
+    console.log('Building leaderboard...');
     const res = await fetch(`${BASE_URL}/api/leaderboard`);
     const data = await res.json();
+    console.log('Leaderboard data:', data);
     
     const tbody = document.getElementById('lb-body');
     tbody.innerHTML = '';
@@ -1396,53 +1403,62 @@ async function buildLeaderboard() {
     }
     
     const lbData = data.leaderboard;
+    const testedUsers = lbData.filter(u => u.tests > 0);
     const totalPlayers = lbData.length;
-    const avgWpm = Math.round(lbData.reduce((sum, u) => sum + u.wpm, 0) / totalPlayers);
+    const testedCount = testedUsers.length;
+    const avgWpm = testedCount > 0 ? Math.round(testedUsers.reduce((sum, u) => sum + u.wpm, 0) / testedCount) : 0;
+    const topWpm = testedCount > 0 ? Math.max(...testedUsers.map(u => u.wpm)) : 0;
     
     document.getElementById('lb-stats').innerHTML = `
       <div class="lb-stat-card">
         <div class="lb-stat-val" style="color:var(--gold)">${totalPlayers}</div>
-        <div class="lb-stat-label">Players</div>
+        <div class="lb-stat-label">Total Players</div>
       </div>
       <div class="lb-stat-card">
         <div class="lb-stat-val" style="color:var(--accent)">${avgWpm}</div>
         <div class="lb-stat-label">Avg WPM</div>
       </div>
       <div class="lb-stat-card">
-        <div class="lb-stat-val" style="color:var(--green)">${lbData[0]?.wpm || 0}</div>
+        <div class="lb-stat-val" style="color:var(--green)">${topWpm}</div>
         <div class="lb-stat-label">Top WPM</div>
+      </div>
+      <div class="lb-stat-card">
+        <div class="lb-stat-val" style="color:var(--purple)">${testedCount}</div>
+        <div class="lb-stat-label">Active Players</div>
       </div>
     `;
     
     lbData.forEach(e => {
-      const isYou = e.name === state.user?.username;
+      const isYou = e.name === currentUser?.username;
       const rankIcon = e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : '';
       const rankBg = e.rank === 1 ? 'rgba(255,215,0,0.15)' : e.rank === 2 ? 'rgba(192,192,192,0.12)' : e.rank === 3 ? 'rgba(205,127,50,0.12)' : '';
       const planBadge = e.plan === 'pro' ? '<span class="lb-badge lb-pro">👑 PRO</span>' : '';
       const accColor = e.acc >= 95 ? 'var(--green)' : e.acc >= 85 ? 'var(--gold)' : e.acc >= 70 ? 'var(--orange)' : 'var(--text2)';
       const wpmColor = e.wpm >= 80 ? 'var(--gold)' : e.wpm >= 60 ? 'var(--accent)' : e.wpm >= 40 ? 'var(--green)' : 'var(--text)';
+      const isNew = !e.hasTested;
       
       tbody.innerHTML += `
         <tr style="${isYou ? 'background:rgba(0,212,255,0.08);' : rankBg ? 'background:' + rankBg : ''}">
           <td>
             <span class="lb-rank" style="${e.rank <= 3 ? 'font-size:1.3rem;' : 'color:var(--text2);font-size:0.85rem;'}">
-              ${rankIcon || '#' + e.rank}
+              ${rankIcon || (isNew ? '✨' : '#' + e.rank)}
             </span>
           </td>
           <td>
             <div class="lb-player">
-              <span class="lb-name" style="${isYou ? 'color:var(--accent);font-weight:700;' : wpmColor + ';font-weight:600;'}">
+              <span class="lb-name" style="${isYou ? 'color:var(--accent);font-weight:700;' : isNew ? 'color:var(--text2);' : wpmColor + ';font-weight:600;'}">
                 ${isYou ? '👉 ' : ''}${e.name}${isYou ? ' 👈' : ''}
               </span>
               ${planBadge}
+              ${isNew ? '<span class="lb-badge lb-new">NEW</span>' : ''}
             </div>
           </td>
           <td>
-            <span class="lb-wpm" style="color:${wpmColor};font-weight:700;font-size:1.1rem;">${e.wpm}</span>
+            <span class="lb-wpm" style="color:${isNew ? 'var(--text2)' : wpmColor};font-weight:700;font-size:1.1rem;">${e.wpm}</span>
             <span style="color:var(--text2);font-size:0.75rem;"> WPM</span>
           </td>
           <td>
-            <span class="lb-acc" style="color:${accColor};font-weight:600;">${e.acc}%</span>
+            <span class="lb-acc" style="color:${isNew ? 'var(--text2)' : accColor};font-weight:600;">${e.acc}%</span>
           </td>
           <td style="color:var(--text2);font-size:0.8rem;">${e.tests} tests</td>
           <td>

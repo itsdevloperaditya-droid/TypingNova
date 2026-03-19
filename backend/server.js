@@ -34,14 +34,6 @@ connectDB()
       res.sendFile(path.join(frontendPath, 'index.html'));
     });
 
-    // Error handling middleware - MUST be last
-    app.use((err, req, res, next) => {
-      console.error('Server Error:', err);
-      if (!res.headersSent) {
-        res.status(500).json({ success: false, message: err.message || 'Internal server error' });
-      }
-    });
-
     const PORT = process.env.PORT || 3000;
 
     app.listen(PORT, () => {

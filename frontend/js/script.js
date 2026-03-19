@@ -822,20 +822,27 @@ function finishTest() {
   
   // Save to server if logged in
   if (currentUser) {
-    const token = localStorage.getItem('token');
-    fetch(`${BASE_URL}/api/auth/test-result`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        wpm,
-        accuracy: acc,
-        timeLimit: state.timeLimit,
-        totalWords: Math.floor(state.typedIndex/5)
-      })
-    }).catch(e => console.log('Failed to save test result to server'));
+    const token = localStorage.getItem('tg_token');
+    if (token) {
+      fetch(`${BASE_URL}/api/auth/test-result`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          wpm,
+          accuracy: acc,
+          timeLimit: state.timeLimit,
+          totalWords: Math.floor(state.typedIndex/5)
+        })
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          currentUser.stats = data.stats;
+          localStorage.setItem('tg_user', JSON.stringify(currentUser));
+        }
+      }).catch(e => console.log('Failed to save test result to server'));
+    }
   }
 
   // Format time display
@@ -1377,6 +1384,38 @@ function endWordRain() {
 // 
 async function buildLeaderboard() {
   try {
+    // First, sync current user's stats from server if logged in
+    if (currentUser) {
+      const token = localStorage.getItem('tg_token');
+      if (token) {
+        try {
+          const meRes = await fetch(`${BASE_URL}/api/auth/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          const meData = await meRes.json();
+          if (meData.success && meData.user && meData.user.stats) {
+            currentUser.stats = meData.user.stats;
+            // Update local state with server stats
+            if (meData.user.stats.bestWpm > 0) {
+              state.stats.pbWpm = state.stats.pbWpm || {};
+              state.stats.pbWpm[60] = Math.max(state.stats.pbWpm[60] || 0, meData.user.stats.bestWpm);
+            }
+            if (meData.user.stats.testsDone > 0) {
+              state.stats.totalTests = meData.user.stats.testsDone;
+            }
+            if (meData.user.stats.avgAccuracy > 0) {
+              state.stats.accuracies = [meData.user.stats.avgAccuracy];
+            }
+            if (meData.user.stats.totalWords > 0) {
+              state.stats.totalWords = meData.user.stats.totalWords;
+            }
+          }
+        } catch(e) {
+          console.log('Could not sync stats from server');
+        }
+      }
+    }
+    
     const res = await fetch(`${BASE_URL}/api/leaderboard`);
     const data = await res.json();
     

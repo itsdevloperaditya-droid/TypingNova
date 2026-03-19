@@ -56,6 +56,8 @@
     border-radius: 16px;
     padding: 40px;
     text-align: center;
+    position: relative;
+    z-index: 1;
   }
   .login-box h2 {
     font-family: 'Orbitron', sans-serif;
@@ -181,6 +183,9 @@
     z-index: 1000;
     padding: 20px;
   }
+  .modal-overlay.hidden {
+    display: none !important;
+  }
   .modal {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -245,14 +250,6 @@
     background: var(--accent);
     padding: 10px 20px;
     font-size: 0.9rem;
-  }
-  .delete-confirm {
-    color: var(--red);
-    font-size: 0.9rem;
-    margin: 16px 0;
-    padding: 12px;
-    background: rgba(239,68,68,0.1);
-    border-radius: 8px;
   }
   @media (max-width: 768px) {
     .stats-grid { grid-template-columns: 1fr 1fr; }
@@ -329,17 +326,8 @@
     <h2>👤 User Details</h2>
     <div class="detail-grid" id="user-details"></div>
     <div class="action-btns">
-      <button class="btn-red" onclick="confirmDelete()">🗑️ Delete User</button>
+      <button class="btn-red" onclick="executeDelete()">🗑️ Delete User</button>
       <button onclick="closeModal()">Close</button>
-    </div>
-    <div id="delete-confirm-box" class="delete-confirm hidden">
-      <p>⚠️ This will <strong>permanently delete</strong> this user and remove them from the leaderboard.</p>
-      <p style="margin-top:8px;">Type <strong>DELETE</strong> to confirm:</p>
-      <input type="text" id="delete-confirm-input" placeholder="Type DELETE here" style="margin-top:8px;">
-      <div class="action-btns">
-        <button class="btn-red" onclick="executeDelete()">Confirm Delete</button>
-        <button onclick="cancelDelete()">Cancel</button>
-      </div>
     </div>
   </div>
 </div>
@@ -480,7 +468,6 @@ async function viewUser(userId) {
           <div class="value" style="font-size:0.8rem;color:var(--text2);">${u._id}</div>
         </div>
       `;
-      document.getElementById('delete-confirm-box').classList.add('hidden');
       document.getElementById('user-modal').classList.remove('hidden');
     }
   } catch (e) {
@@ -495,21 +482,8 @@ function closeModal(event) {
   }
 }
 
-function confirmDelete() {
-  document.getElementById('delete-confirm-box').classList.remove('hidden');
-  document.getElementById('delete-confirm-input').value = '';
-}
-
-function cancelDelete() {
-  document.getElementById('delete-confirm-box').classList.add('hidden');
-}
-
 async function executeDelete() {
-  const confirmInput = document.getElementById('delete-confirm-input').value;
-  if (confirmInput !== 'DELETE') {
-    alert('Please type DELETE to confirm');
-    return;
-  }
+  if (!confirm('Are you sure you want to delete this user?')) return;
   
   try {
     const res = await fetch(`${BASE_URL}/api/admin/users/${selectedUserId}`, {
@@ -519,7 +493,6 @@ async function executeDelete() {
     const data = await res.json();
     
     if (data.success) {
-      alert('User permanently deleted');
       closeModal();
       loadAllUsers();
       loadStats();

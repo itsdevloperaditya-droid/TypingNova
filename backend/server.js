@@ -8,6 +8,7 @@ dotenv.config();
 
 const authRoutes = require('./routes/auth');
 const adminRoutes = require('./routes/admin');
+const leaderboardRoutes = require('./routes/leaderboard');
 
 const app = express();
 
@@ -19,6 +20,7 @@ connectDB()
 
     app.use('/api/auth', authRoutes);
     app.use('/api/admin', adminRoutes);
+    app.use('/api/leaderboard', leaderboardRoutes);
 
     app.get('/api', (req, res) => {
       res.json({ message: 'Welcome to TypeNova API' });

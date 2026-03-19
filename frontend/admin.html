@@ -34,7 +34,7 @@
     pointer-events: none;
   }
   .container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 40px 20px;
     position: relative;
@@ -47,6 +47,7 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
+  h2 { font-size: 1.3rem; margin-bottom: 20px; }
   .login-box {
     max-width: 400px;
     margin: 100px auto;
@@ -75,18 +76,23 @@
     border-color: var(--accent);
   }
   button {
-    width: 100%;
-    padding: 14px;
+    padding: 12px 24px;
     background: linear-gradient(90deg, var(--accent), var(--accent2));
     border: none;
     border-radius: 8px;
     color: white;
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
     transition: transform 0.2s;
   }
   button:hover { transform: scale(1.02); }
+  .btn-red {
+    background: var(--red);
+    padding: 8px 16px;
+    font-size: 0.85rem;
+  }
+  .btn-red:hover { background: #dc2626; }
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -114,12 +120,17 @@
   .stat-card.gold .number { color: var(--gold); }
   .stat-card.green .number { color: var(--green); }
   .stat-card.purple .number { color: var(--accent2); }
-  table {
-    width: 100%;
+  .table-container {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 12px;
-    overflow: hidden;
+    overflow-x: auto;
+    margin-bottom: 40px;
+  }
+  table {
+    width: 100%;
+    min-width: 900px;
+    border-collapse: collapse;
   }
   th, td {
     padding: 14px 16px;
@@ -133,6 +144,7 @@
     font-size: 0.85rem;
   }
   tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
   .badge {
     padding: 4px 10px;
     border-radius: 20px;
@@ -158,10 +170,96 @@
     background: var(--red);
   }
   .error { color: var(--red); margin-bottom: 16px; }
+  
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+  }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .modal h2 {
+    font-family: 'Orbitron', sans-serif;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .modal-close {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    color: var(--text2);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 5px;
+  }
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .detail-item {
+    background: var(--bg);
+    padding: 16px;
+    border-radius: 8px;
+  }
+  .detail-item label {
+    display: block;
+    color: var(--text2);
+    font-size: 0.8rem;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .detail-item .value {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+  .detail-item.full { grid-column: span 2; }
+  .action-btns {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+  .view-btn {
+    background: var(--accent);
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+  .delete-confirm {
+    color: var(--red);
+    font-size: 0.9rem;
+    margin: 16px 0;
+    padding: 12px;
+    background: rgba(239,68,68,0.1);
+    border-radius: 8px;
+  }
   @media (max-width: 768px) {
     .stats-grid { grid-template-columns: 1fr 1fr; }
-    table { font-size: 0.85rem; }
+    .table-container { font-size: 0.85rem; }
     th, td { padding: 10px 8px; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .detail-item.full { grid-column: span 1; }
   }
 </style>
 </head>
@@ -202,30 +300,57 @@
       </div>
     </div>
 
-    <h2 style="margin-bottom: 20px; font-size: 1.3rem;">👥 Recent Users</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Username</th>
-          <th>Email</th>
-          <th>Plan</th>
-          <th>Best WPM</th>
-          <th>Tests Done</th>
-          <th>Joined</th>
-        </tr>
-      </thead>
-      <tbody id="users-table">
-      </tbody>
-    </table>
+    <h2>👥 All Users</h2>
+    <div class="table-container">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Plan</th>
+            <th>Best WPM</th>
+            <th>Avg Accuracy</th>
+            <th>Tests Done</th>
+            <th>Total Words</th>
+            <th>Joined</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="users-table">
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div id="user-modal" class="modal-overlay hidden" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h2>👤 User Details</h2>
+    <div class="detail-grid" id="user-details"></div>
+    <div class="action-btns">
+      <button class="btn-red" onclick="confirmDelete()">🗑️ Delete User</button>
+      <button onclick="closeModal()">Close</button>
+    </div>
+    <div id="delete-confirm-box" class="delete-confirm hidden">
+      <p>⚠️ This will <strong>permanently delete</strong> this user and remove them from the leaderboard.</p>
+      <p style="margin-top:8px;">Type <strong>DELETE</strong> to confirm:</p>
+      <input type="text" id="delete-confirm-input" placeholder="Type DELETE here" style="margin-top:8px;">
+      <div class="action-btns">
+        <button class="btn-red" onclick="executeDelete()">Confirm Delete</button>
+        <button onclick="cancelDelete()">Cancel</button>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
 const BASE_URL = 'https://typenova-backend-p5hu.onrender.com';
 let adminToken = localStorage.getItem('admin_token');
+let selectedUserId = null;
 
 if (adminToken) {
-  loadStats();
+  loadDashboard();
 }
 
 async function adminLogin() {
@@ -245,13 +370,19 @@ async function adminLogin() {
     if (data.success) {
       adminToken = data.token;
       localStorage.setItem('admin_token', adminToken);
-      loadStats();
+      loadDashboard();
     } else {
       errorMsg.textContent = data.message || 'Invalid credentials';
     }
   } catch (e) {
     errorMsg.textContent = 'Login failed. Please try again.';
   }
+}
+
+async function loadDashboard() {
+  await Promise.all([loadStats(), loadAllUsers()]);
+  document.getElementById('login-section').classList.add('hidden');
+  document.getElementById('dashboard-section').classList.remove('hidden');
 }
 
 async function loadStats() {
@@ -262,33 +393,141 @@ async function loadStats() {
     const data = await res.json();
     
     if (data.success) {
-      document.getElementById('login-section').classList.add('hidden');
-      document.getElementById('dashboard-section').classList.remove('hidden');
-      
       document.getElementById('total-users').textContent = data.stats.totalUsers;
       document.getElementById('pro-users').textContent = data.stats.proUsers;
       document.getElementById('avg-wpm').textContent = data.stats.avgWpm;
       document.getElementById('total-tests').textContent = data.stats.totalTests;
-      
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function loadAllUsers() {
+  try {
+    const res = await fetch(`${BASE_URL}/api/admin/users`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    
+    if (data.success) {
       const tbody = document.getElementById('users-table');
-      tbody.innerHTML = data.stats.recentUsers.map(u => `
+      tbody.innerHTML = data.users.map((u, i) => `
         <tr>
+          <td>${i + 1}</td>
           <td><strong>${u.username}</strong></td>
           <td style="color:var(--text2);font-size:0.85rem;">${u.email}</td>
           <td><span class="badge ${u.plan === 'pro' ? 'badge-pro' : 'badge-basic'}">${u.plan.toUpperCase()}</span></td>
           <td>${u.stats?.bestWpm || 0}</td>
+          <td>${u.stats?.avgAccuracy ? u.stats.avgAccuracy.toFixed(1) + '%' : '0%'}</td>
           <td>${u.stats?.testsDone || 0}</td>
+          <td>${u.stats?.totalWords || 0}</td>
           <td class="date">${new Date(u.createdAt).toLocaleDateString()}</td>
+          <td><button class="view-btn" onclick="viewUser('${u._id}')">View</button></td>
         </tr>
       `).join('');
-    } else {
-      localStorage.removeItem('admin_token');
-      adminToken = null;
-      document.getElementById('error-msg').textContent = data.message || 'Session expired. Please login again.';
     }
   } catch (e) {
     console.error(e);
-    document.getElementById('error-msg').textContent = 'Could not load admin dashboard.';
+  }
+}
+
+async function viewUser(userId) {
+  try {
+    const res = await fetch(`${BASE_URL}/api/admin/users/${userId}`, {
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      selectedUserId = userId;
+      const u = data.user;
+      document.getElementById('user-details').innerHTML = `
+        <div class="detail-item">
+          <label>Username</label>
+          <div class="value">${u.username}</div>
+        </div>
+        <div class="detail-item">
+          <label>Email</label>
+          <div class="value">${u.email}</div>
+        </div>
+        <div class="detail-item">
+          <label>Plan</label>
+          <div class="value"><span class="badge ${u.plan === 'pro' ? 'badge-pro' : 'badge-basic'}">${u.plan.toUpperCase()}</span></div>
+        </div>
+        <div class="detail-item">
+          <label>Member Since</label>
+          <div class="value">${new Date(u.createdAt).toLocaleDateString()}</div>
+        </div>
+        <div class="detail-item">
+          <label>Best WPM</label>
+          <div class="value" style="color:var(--cyan);">${u.stats?.bestWpm || 0}</div>
+        </div>
+        <div class="detail-item">
+          <label>Average Accuracy</label>
+          <div class="value" style="color:var(--green);">${u.stats?.avgAccuracy ? u.stats.avgAccuracy.toFixed(1) + '%' : '0%'}</div>
+        </div>
+        <div class="detail-item">
+          <label>Tests Completed</label>
+          <div class="value">${u.stats?.testsDone || 0}</div>
+        </div>
+        <div class="detail-item">
+          <label>Total Words Typed</label>
+          <div class="value">${u.stats?.totalWords || 0}</div>
+        </div>
+        <div class="detail-item full">
+          <label>User ID</label>
+          <div class="value" style="font-size:0.8rem;color:var(--text2);">${u._id}</div>
+        </div>
+      `;
+      document.getElementById('delete-confirm-box').classList.add('hidden');
+      document.getElementById('user-modal').classList.remove('hidden');
+    }
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function closeModal(event) {
+  if (!event || event.target.id === 'user-modal') {
+    document.getElementById('user-modal').classList.add('hidden');
+    selectedUserId = null;
+  }
+}
+
+function confirmDelete() {
+  document.getElementById('delete-confirm-box').classList.remove('hidden');
+  document.getElementById('delete-confirm-input').value = '';
+}
+
+function cancelDelete() {
+  document.getElementById('delete-confirm-box').classList.add('hidden');
+}
+
+async function executeDelete() {
+  const confirmInput = document.getElementById('delete-confirm-input').value;
+  if (confirmInput !== 'DELETE') {
+    alert('Please type DELETE to confirm');
+    return;
+  }
+  
+  try {
+    const res = await fetch(`${BASE_URL}/api/admin/users/${selectedUserId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${adminToken}` }
+    });
+    const data = await res.json();
+    
+    if (data.success) {
+      alert('User permanently deleted');
+      closeModal();
+      loadAllUsers();
+      loadStats();
+    } else {
+      alert(data.message || 'Failed to delete user');
+    }
+  } catch (e) {
+    alert('Failed to delete user');
   }
 }
 

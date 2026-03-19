@@ -1461,45 +1461,6 @@ async function buildLeaderboard() {
       hasTested: (Number(entry.tests) || 0) > 0
     }));
     
-    // Get current user's local stats (from website top bar)
-    let userWpm = Math.max(...Object.values(state.stats.pbWpm), 0);
-    let userAcc = state.stats.accuracies.length 
-      ? Math.round(state.stats.accuracies.reduce((a,b)=>a+b,0)/state.stats.accuracies.length) 
-      : 0;
-    let userTests = state.stats.totalTests || 0;
-    let userWords = state.stats.totalWords || 0;
-    let userStreak = state.stats.streak || 0;
-    
-    // Only patch the current user's row when the local session is ahead of the last server sync.
-    if (currentUser) {
-      const userIndex = lbData.findIndex(u => u.name.toLowerCase() === currentUser.username.toLowerCase());
-      if (userIndex !== -1) {
-        if (userTests > lbData[userIndex].tests || userWpm > lbData[userIndex].wpm) {
-          lbData[userIndex].wpm = userWpm;
-          lbData[userIndex].accuracy = userAcc;
-          lbData[userIndex].tests = userTests;
-          lbData[userIndex].words = userWords;
-          lbData[userIndex].hasTested = userTests > 0;
-        }
-        lbData[userIndex].streak = userStreak;
-      } else {
-        lbData.push({
-          rank: lbData.length + 1,
-          username: currentUser.username,
-          name: currentUser.username,
-          wpm: userWpm,
-          accuracy: userAcc,
-          tests: userTests,
-          words: userWords,
-          streak: userStreak,
-          plan: currentUser.plan || 'basic',
-          rankLabel: userWpm >= 80 ? 'A' : userWpm >= 60 ? 'B+' : userWpm >= 40 ? 'B' : userWpm >= 30 ? 'C+' : 'C',
-          rankClass: userWpm >= 80 ? 'rank-a' : userWpm >= 60 ? 'rank-b-plus' : userWpm >= 40 ? 'rank-b' : userWpm >= 30 ? 'rank-c-plus' : 'rank-c',
-          hasTested: userTests > 0
-        });
-      }
-    }
-    
     // Re-sort based on WPM (highest first), then by accuracy
     lbData.sort((a, b) => {
       if (b.wpm !== a.wpm) return b.wpm - a.wpm;

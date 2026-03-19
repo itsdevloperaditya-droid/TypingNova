@@ -7236,7 +7236,7 @@ window.showPage = function(id) {
   })();
 
 // ✅ Backend Base URL
-const BASE_URL = window.location.origin && /^https?:/i.test(window.location.origin)
+const BASE_URL = ['localhost', '127.0.0.1'].includes(window.location.hostname)
   ? window.location.origin
   : "https://typenova-backend-p5hu.onrender.com";
 
